@@ -9,6 +9,7 @@ Tools (all read-only; market tools call free public APIs straight from your mach
   defi_yields                      top stable yields on sizeable pools (DefiLlama)
   fear_greed                       crypto Fear and Greed index (alternative.me)
   check_evm_token                  EVM token contract capabilities (7 networks)
+  funding_compare                  funding rates compared across Binance, Bybit and OKX
   solana_approvals                 token delegates on a Solana wallet (permissions to revoke)
   trade_cost                       Pump.fun round-trip cost for your size
 Data and statistics only. Not financial advice. No trading signals.
@@ -117,6 +118,7 @@ TOOLS = {
     "check_evm_token": ("Static contract check for a BNB Chain, Base, Ethereum, Arbitrum, Polygon, Optimism or Avalanche token: what the owner can do (mint, blacklist, pause, fees, upgrade), ownership, proxy and V2 liquidity. Heuristics, not a score.",
                         {"chain": {"type": "string", "enum": ["bsc", "base", "eth", "arb", "polygon", "op", "avax"]}, "address": {"type": "string"}}, ["chain", "address"],
                         lambda a: mintsieve(f"/v1/evm/{a['chain']}/{a['address']}")),
+    "funding_compare": ("Perpetual funding rates side by side on Binance, Bybit and OKX: the largest differences between exchanges and the most extreme averages. Descriptive only.", {}, [], lambda a: mintsieve("/v1/funding")),
     "solana_approvals": ("Token accounts of a Solana wallet that have an active delegate (an address allowed to move that token). Read-only; helps find permissions to revoke.",
                          {"wallet": {"type": "string"}}, ["wallet"], lambda a: mintsieve(f"/v1/approvals/solana/{a['wallet']}")),
     "trade_cost": ("Round-trip cost of a Pump.fun trade for your size: fees, price impact, tips, and the break-even price move.",
