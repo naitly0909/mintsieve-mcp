@@ -8,6 +8,7 @@ Tools (all read-only; market tools call free public APIs straight from your mach
   stablecoin_peg                   USD stablecoins trading away from $1 (DefiLlama)
   defi_yields                      top stable yields on sizeable pools (DefiLlama)
   fear_greed                       crypto Fear and Greed index (alternative.me)
+  check_evm_token                  EVM token contract capabilities (BNB Chain, Base, Ethereum)
   trade_cost                       Pump.fun round-trip cost for your size
 Data and statistics only. Not financial advice. No trading signals.
 Env: MINTSIEVE_URL, MINTSIEVE_API_KEY (optional)."""
@@ -112,6 +113,9 @@ TOOLS = {
     "defi_yields": ("Highest base yields on stablecoin pools with at least 10M USD TVL (DefiLlama). Data only.", {"top": {"type": "integer"}}, [],
                     lambda a: parse_yields(http_json("https://yields.llama.fi/pools", 900), top=int(a.get("top", 10)))),
     "fear_greed": ("Crypto Fear and Greed index (alternative.me).", {}, [], lambda a: parse_fng(http_json("https://api.alternative.me/fng/", 600))),
+    "check_evm_token": ("Static contract check for a BNB Chain, Base or Ethereum token: what the owner can do (mint, blacklist, pause, fees, upgrade), ownership, proxy and V2 liquidity. Heuristics, not a score.",
+                        {"chain": {"type": "string", "enum": ["bsc", "base", "eth"]}, "address": {"type": "string"}}, ["chain", "address"],
+                        lambda a: mintsieve(f"/v1/evm/{a['chain']}/{a['address']}")),
     "trade_cost": ("Round-trip cost of a Pump.fun trade for your size: fees, price impact, tips, and the break-even price move.",
                    {"size_sol": {"type": "number"}, "virtual_sol": {"type": "number"}, "tip_sol": {"type": "number"}, "priority_sol": {"type": "number"}}, ["size_sol"],
                    lambda a: trade_cost(float(a["size_sol"]), float(a.get("virtual_sol", 34)), float(a.get("tip_sol", 0.0005)), float(a.get("priority_sol", 0.00005)))),

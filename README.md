@@ -1,6 +1,6 @@
 # mintsieve-mcp
 
-Free MCP server (stdio, Python 3, no dependencies) with eight read-only tools for crypto traders and AI agents. Data and statistics only: no trading signals, not financial advice.
+Free MCP server (stdio, Python 3, no dependencies) with nine read-only tools for crypto traders and AI agents. Data and statistics only: no trading signals, not financial advice.
 
 | Tool | What it returns | Source |
 |---|---|---|
@@ -11,6 +11,7 @@ Free MCP server (stdio, Python 3, no dependencies) with eight read-only tools fo
 | `stablecoin_peg` | Large USD stablecoins trading away from $1 | DefiLlama |
 | `defi_yields` | Highest base yields on stablecoin pools with at least 10M USD TVL | DefiLlama |
 | `fear_greed` | Crypto Fear and Greed index | alternative.me |
+| `check_evm_token` | BNB Chain, Base or Ethereum token: what the owner can do (mint, blacklist, pause, fees, upgrade), ownership, proxy, V2 liquidity. Static heuristics | MintSieve API |
 | `trade_cost` | Pump.fun round-trip cost for your size: fees, price impact, tips, break-even move | local calculation |
 
 Market tools call the public APIs directly from your machine; nothing goes through MintSieve.
