@@ -14,3 +14,6 @@ Example MCP client config:
 ```json
 {"mcpServers": {"mintsieve": {"command": "python3", "args": ["/path/to/mcp_server.py"]}}}
 ```
+
+## License
+MIT, see LICENSE. The MintSieve service itself and its model are not part of this repository.
