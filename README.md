@@ -15,6 +15,9 @@ Free MCP server (stdio, Python 3, no dependencies) with eight read-only tools fo
 
 Market tools call the public APIs directly from your machine; nothing goes through MintSieve.
 
+## Data sources and credit
+Jito public API, Binance public API, DefiLlama (defillama.com), alternative.me (Fear and Greed Index, https://alternative.me/crypto/fear-and-greed-index/). Each tool answer names its source. Please respect those services' terms and rate limits; results are cached for a short time.
+
 ## Use
 ```
 python3 mcp_server.py

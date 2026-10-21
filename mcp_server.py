@@ -35,7 +35,7 @@ def parse_jito(rows):
     r = rows[0]
     return {"time": r["time"], "landed_tip_sol": {"p25": r["landed_tips_25th_percentile"], "p50": r["landed_tips_50th_percentile"], "p75": r["landed_tips_75th_percentile"],
             "p95": r["landed_tips_95th_percentile"], "p99": r["landed_tips_99th_percentile"]},
-            "meaning": "Tips (SOL) of bundles that landed. Winning a race against bots needs the high percentiles; a patient trade can use the median."}
+            "source": "Jito public API (bundles.jito.wtf)", "meaning": "Tips (SOL) of bundles that landed. Winning a race against bots needs the high percentiles; a patient trade can use the median."}
 
 
 def parse_funding(rows, top=5, min_abs=0.0):
@@ -49,7 +49,7 @@ def parse_funding(rows, top=5, min_abs=0.0):
             items.append({"symbol": x["symbol"], "funding_8h_pct": round(fr * 100, 4), "annualized_pct": round(fr * 3 * 365 * 100, 1), "mark": float(x.get("markPrice") or 0)})
     items.sort(key=lambda i: i["funding_8h_pct"])
     return {"most_negative": items[:top], "most_positive": items[-top:][::-1], "count": len(items),
-            "meaning": "Positive funding: longs pay shorts (crowded longs). Negative: shorts pay longs. A description of positioning, not a forecast."}
+            "source": "Binance public futures API", "meaning": "Positive funding: longs pay shorts (crowded longs). Negative: shorts pay longs. A description of positioning, not a forecast."}
 
 
 def parse_stables(data, top=40, min_dev=0.005):
@@ -62,7 +62,7 @@ def parse_stables(data, top=40, min_dev=0.005):
     out.sort(key=lambda i: -i["market_cap_usd"])
     top_assets = out[:top]
     return {"off_peg": [i for i in top_assets if abs(i["deviation_pct"]) >= min_dev * 100], "checked": len(top_assets),
-            "meaning": f"Top {len(top_assets)} USD stablecoins by size; listed if the price is more than {min_dev*100:.1f}% from $1."}
+            "source": "DefiLlama stablecoins API (defillama.com)", "meaning": f"Top {len(top_assets)} USD stablecoins by size; listed if the price is more than {min_dev*100:.1f}% from $1."}
 
 
 def parse_yields(data, min_tvl=1e7, stable_only=True, top=10):
@@ -70,13 +70,13 @@ def parse_yields(data, min_tvl=1e7, stable_only=True, top=10):
     rows.sort(key=lambda p: -(p.get("apyBase") or 0))
     return {"pools": [{"chain": p["chain"], "project": p["project"], "symbol": p["symbol"], "tvl_usd": round(p["tvlUsd"]), "apy_pct": round(p["apy"], 2),
                        "apy_base_pct": round(p.get("apyBase") or 0, 2), "il_risk": p.get("ilRisk")} for p in rows[:top]],
-            "meaning": "Highest base APY among pools with sizeable TVL. High yield means high risk; check the protocol before using it."}
+            "source": "DefiLlama yields API (defillama.com)", "meaning": "Highest base APY among pools with sizeable TVL. High yield means high risk; check the protocol before using it."}
 
 
 def parse_fng(data):
     d = data["data"][0]
     return {"value": int(d["value"]), "classification": d["value_classification"], "timestamp": int(d["timestamp"]),
-            "meaning": "0 extreme fear, 100 extreme greed. A sentiment gauge, not a signal."}
+            "source": "alternative.me Fear and Greed Index (https://alternative.me/crypto/fear-and-greed-index/)", "meaning": "0 extreme fear, 100 extreme greed. A sentiment gauge, not a signal."}
 
 
 def trade_cost(size_sol, virtual_sol=34.0, tip_sol=0.0005, priority_sol=0.00005):
