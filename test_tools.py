@@ -27,4 +27,22 @@ class T(unittest.TestCase):
         r = m.trade_cost(1.0, 34, 0.001, 0.0); self.assertAlmostEqual(r["fees_pct"], 2.5); self.assertAlmostEqual(r["price_impact_pct"], 4.41, places=2); self.assertAlmostEqual(r["tips_pct"], 0.2, places=2)
     def test_unknown_tool_and_errors_are_contained(self):
         self.assertIn("error", m.run_tool("nope", {})); self.assertIn("error", m.run_tool("trade_cost", {}))
+class T2(unittest.TestCase):
+    def test_new_tools_registered_and_coverage(self):
+        for n in ("wallet_lookup", "solana_portfolio", "data_coverage"): self.assertIn(n, m.TOOLS)
+        old = m.lynxcheck; m.lynxcheck = lambda p: {"coverage": "c", "tokens_total": 5, "validation": {"model_v2": {"auc_val": 0.88, "n_val": 3, "base_val_lose": 0.25}}}
+        try: r = m.run_tool("data_coverage", {})
+        finally: m.lynxcheck = old
+        self.assertEqual(r["validation"]["auc_held_out"], 0.88); self.assertIn("note", r)
+class T3(unittest.TestCase):
+    def test_batch_check_posts_and_validates(self):
+        self.assertIn("batch_check", m.TOOLS)
+        self.assertIn("error", m.run_tool("batch_check", {"items": []})); self.assertIn("error", m.run_tool("batch_check", {"items": [{}] * 21}))
+        seen = {}
+        old = m.lynxcheck_post
+        m.lynxcheck_post = lambda p, b: seen.update(path=p, body=b) or {"count": 1, "units_used": 1, "results": [{"index": 0, "verdict": "AVOID"}], "disclaimer": "d"}
+        try: r = m.run_tool("batch_check", {"items": [{"chain": "solana", "address": "x"}]})
+        finally: m.lynxcheck_post = old
+        self.assertEqual(seen["path"], "/v1/batch"); self.assertEqual(r["results"][0]["verdict"], "AVOID"); self.assertIn("note", r)
+
 if __name__ == "__main__": unittest.main()
