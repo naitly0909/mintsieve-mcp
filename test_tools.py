@@ -29,7 +29,16 @@ class T(unittest.TestCase):
         self.assertIn("error", m.run_tool("nope", {})); self.assertIn("error", m.run_tool("trade_cost", {}))
 class T2(unittest.TestCase):
     def test_new_tools_registered_and_coverage(self):
-        for n in ("wallet_lookup", "solana_portfolio", "data_coverage"): self.assertIn(n, m.TOOLS)
+        for n in ("wallet_lookup", "solana_portfolio", "data_coverage", "journal_summary", "journal_token", "journal_trades"): self.assertIn(n, m.TOOLS)
+        old_key, m.KEY = m.KEY, None
+        try: r = m.run_tool("journal_summary", {}); self.assertIn("LYNXCHECK_API_KEY", r["error"]); self.assertIn("Key for agents", r["error"])      # no key: a hint, no network call
+        finally: m.KEY = old_key
+        old, m.KEY, seen = m.lynxcheck, "ms_test", []
+        m.lynxcheck = lambda p: seen.append(p) or {"tokens": []}
+        try:
+            m.run_tool("journal_summary", {"period": "7d", "tz": "Europe/Warsaw"}); m.run_tool("journal_token", {"mint": "So111", "wid": "w1"}); m.run_tool("journal_trades", {})
+        finally: m.lynxcheck, m.KEY = old, old_key
+        self.assertEqual(seen, ["/v1/journal/summary?period=7d&tz=Europe%2FWarsaw", "/v1/journal/token?mint=So111&wid=w1", "/v1/journal/trades"])
         old = m.lynxcheck; m.lynxcheck = lambda p: {"coverage": "c", "tokens_total": 5, "validation": {"model_v2": {"auc_val": 0.88, "n_val": 3, "base_val_lose": 0.25}}}
         try: r = m.run_tool("data_coverage", {})
         finally: m.lynxcheck = old

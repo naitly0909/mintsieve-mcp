@@ -23,6 +23,9 @@ Free MCP server (stdio, Python 3, no dependencies) with nineteen read-only tools
 | `wallet_delegation` | EIP-7702 delegation of an EVM wallet on all 7 chains | LynxCheck API |
 | `decode_signature` | Plain-words explanation of a wallet signature request. Nothing is stored | LynxCheck API |
 | `trade_cost` | Pump.fun round-trip cost for your size: fees, price impact, tips, break-even move | local calculation |
+| `journal_summary` | Your own trade journal: realized result in USD at average cost, fees, one row per token with the verdict. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `journal_token` | Token card from your journal: every buy and sell as a part (share, price, distance from the average cost, result), hold time, fees, factual notes. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `journal_trades` | Trades of your journal in the plan window (free: last 30 days and 100 trades; Premium: all). Needs `LYNXCHECK_API_KEY` | LynxCheck API |
 
 Market tools call the public APIs directly from your machine; nothing goes through LynxCheck.
 
@@ -40,7 +43,7 @@ Example MCP client config:
 ```json
 {"mcpServers": {"lynxcheck": {"command": "python3", "args": ["/path/to/mcp_server.py"]}}}
 ```
-Environment: `LYNXCHECK_URL` (default `https://mintsieve.141-95-95-56.sslip.io`), optional `LYNXCHECK_API_KEY` for higher limits on `check_token` and `creator_lookup`.
+Environment: `LYNXCHECK_URL` (default `https://mintsieve.141-95-95-56.sslip.io`), optional `LYNXCHECK_API_KEY` for higher limits on `check_token` and `creator_lookup`, and for the `journal_*` tools: the key names your journal. Get it in the LynxCheck Telegram bot (`/journal`, then "Key for agents") or on the account page; the journal tools only read.
 
 ## Test
 `python3 test_tools.py` (parsers are tested with fixtures).

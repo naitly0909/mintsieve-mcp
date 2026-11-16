@@ -14,6 +14,8 @@ Tools (all read-only; market tools call free public APIs straight from your mach
   solana_approvals                 token delegates on a Solana wallet (permissions to revoke)
   trade_cost                       Pump.fun round-trip cost for your size
   wallet_lookup                    ledger statistics of a Solana wallet (needs LYNXCHECK_API_KEY)
+  journal_summary, journal_token, journal_trades
+                                   your own trade journal: result at average cost, token card, trades (needs LYNXCHECK_API_KEY from the bot: /journal, Key for agents)
   solana_portfolio                 risk scores of the tokens a Solana wallet holds
   data_coverage                    what our data covers (dates, networks, counts, validation)
   exit_check                       what selling a token would really return, from public pool data
@@ -109,11 +111,23 @@ def q(x):
     return urllib.parse.quote(str(x), safe="")
 
 
+KEY_HINT = "in the LynxCheck Telegram bot open /journal and tap 'Key for agents' (or make a key on the account page), then set LYNXCHECK_API_KEY"
+def t_journal(path, a, keys=("period", "month", "tz", "wid")):
+    """The caller's own trade journal, read-only: the key names the journal. No key: a hint, no call. 401: the key was replaced or is unknown."""
+    if not KEY: return {"error": "needs LYNXCHECK_API_KEY: " + KEY_HINT}
+    qs = "&".join(f"{k}={q(a[k])}" for k in keys if a.get(k) not in (None, ""))
+    try: return lynxcheck(path + ("&" if "?" in path else "?") + qs if qs else path)
+    except urllib.error.HTTPError as e:
+        if e.code == 401: return {"error": "the key is not known or was replaced: " + KEY_HINT}
+        if e.code == 404: return {"error": "not in your journal (free plan: last 30 days and 100 trades)"}
+        raise
+
+
 def t_check_token(a):
     d = lynxcheck(f"/v1/token/{q(a['mint'])}?scan=1"); rm = d.get("risk_model") or {}
     return {"available": rm.get("available"), "score_0_100": rm.get("score_0_100"), "p_lose_gt_50": rm.get("p_lose_gt_50"), "band": rm.get("band_v2"),
             "factors": [f.get("label") for f in rm.get("top_factors", [])], "creator_history": d.get("creator_reputation"),
-            "funding_network": d.get("funder_reputation"), "message": d.get("message"), "limit_note": d.get("scan_limit"), "disclaimer": d.get("disclaimer")}
+            "funding_network": d.get("funder_reputation"), "launch_group": d.get("launch_group"), "message": d.get("message"), "limit_note": d.get("scan_limit"), "disclaimer": d.get("disclaimer")}
 
 
 def lynxcheck_post(path, body):
@@ -165,14 +179,24 @@ TOOLS = {
     "solana_portfolio": ("Risk scores for the tokens a Solana wallet holds (up to 10, known tokens first). Read-only.",
                          {"wallet": {"type": "string"}}, ["wallet"], lambda a: lynxcheck(f"/v1/portfolio/solana/{q(a['wallet'])}")),
     "data_coverage": ("What LynxCheck data covers: dates, token and wallet counts, held-out validation, EVM status. Call this before relying on a missing record.", {}, [], t_coverage),
+    "journal_summary": ("Your own trade journal (needs LYNXCHECK_API_KEY from the LynxCheck bot: /journal, 'Key for agents'): realized result in USD at average cost, fees, passive income apart, "
+                        "one row per token with the LynxCheck verdict. period today|yesterday|7d|30d|all or month YYYY-MM, tz like Europe/Warsaw, wid for one wallet. Past trades, not a recommendation.",
+                        {"period": {"type": "string", "enum": ["all", "today", "yesterday", "7d", "30d"]}, "month": {"type": "string"}, "tz": {"type": "string"}, "wid": {"type": "string"}}, [],
+                        lambda a: t_journal("/v1/journal/summary", a)),
+    "journal_token": ("Token card from your journal (needs LYNXCHECK_API_KEY): every buy and sell as a part with its share of the position, price, distance from the average cost and result; hold time, fees, "
+                      "best and worst part, factual notes as codes. Facts, not advice.", {"mint": {"type": "string"}, "wid": {"type": "string"}}, ["mint"],
+                      lambda a: t_journal(f"/v1/journal/token?mint={q(a['mint'])}", a, ("wid",))),
+    "journal_trades": ("Trades of your journal in the plan window (free: last 30 days and 100 trades; Premium: all): kind, token, amount, value in USD, fee, time. Needs LYNXCHECK_API_KEY. Same filters as journal_summary.",
+                       {"period": {"type": "string", "enum": ["all", "today", "yesterday", "7d", "30d"]}, "month": {"type": "string"}, "tz": {"type": "string"}, "wid": {"type": "string"}}, [],
+                       lambda a: t_journal("/v1/journal/trades", a)),
     "exit_check": ("Estimate what selling a token would really return, from public pool data: loss to price impact and fees, price gaps between pools.",
                    {"chain": {"type": "string", "enum": ["solana", "eth", "base", "bsc", "arb", "polygon", "op", "avax"]}, "token": {"type": "string"}, "size_usd": {"type": "number"}}, ["chain", "token"],
                    lambda a: lynxcheck(f"/v1/exit/{q(a['chain'])}/{q(a['token'])}" + (f"?size={q(a['size_usd'])}" if a.get("size_usd") else ""))),
     "wallet_health": ("Public wallet card: share of its traded tokens rated dangerous, recent approvals, look-alike address warnings.",
                       {"address": {"type": "string"}, "chain": {"type": "string"}}, ["address"], lambda a: lynxcheck(f"/v1/health?address={q(a['address'])}" + (f"&chain={q(a['chain'])}" if a.get("chain") else ""))),
     "wallet_delegation": ("Is an EVM wallet delegated through EIP-7702, and to which code, on all 7 EVM chains.", {"address": {"type": "string"}}, ["address"], lambda a: lynxcheck(f"/v1/delegation/{q(a['address'])}")),
-    "decode_signature": ("Explain a wallet signature request before signing: Permit, Permit2, Seaport, EIP-7702, approve calls, blind hashes. Nothing is stored.",
-                         {"text": {"type": "string", "description": "the request as the wallet shows it (JSON or hex)"}}, ["text"], lambda a: lynxcheck_post("/v1/sign/decode", {"text": a["text"]})),
+    "decode_signature": ("Explain a wallet signature request or a Solana transaction before signing: Permit, Permit2, Seaport, EIP-7702, approve calls, blind hashes, Solana transfers, delegates, authority changes. Nothing is stored.",
+                         {"text": {"type": "string", "description": "the request as the wallet shows it (JSON, hex, or a base64 or base58 Solana transaction)"}}, ["text"], lambda a: lynxcheck_post("/v1/sign/decode", {"text": a["text"]})),
     "trade_cost": ("Round-trip cost of a Pump.fun trade for your size: fees, price impact, tips, and the break-even price move.",
                    {"size_sol": {"type": "number"}, "virtual_sol": {"type": "number"}, "tip_sol": {"type": "number"}, "priority_sol": {"type": "number"}}, ["size_sol"],
                    lambda a: trade_cost(float(a["size_sol"]), float(a.get("virtual_sol", 34)), float(a.get("tip_sol", 0.0005)), float(a.get("priority_sol", 0.00005)))),
