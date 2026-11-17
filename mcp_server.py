@@ -114,7 +114,11 @@ def q(x):
 
 
 REPORT_PARAMS = {"month": {"type": "string", "description": "YYYY-MM, default: the previous month"}, "cur": {"type": "string", "description": "report currency, e.g. EUR, PLN, USD, GBP (31 supported)"},
-                 "lang": {"type": "string", "enum": ["en", "pl", "es", "pt", "tr", "vi", "id", "ru", "zh", "ko", "ja", "uk"]}, "tz": {"type": "string"}, "wid": {"type": "string"}}
+                 "lang": {"type": "string", "enum": ["en", "pl", "es", "pt", "tr", "vi", "id", "ru", "zh", "ko", "ja", "uk"]}, "tz": {"type": "string"}, "wid": {"type": "string"},
+                 "from": {"type": "string", "description": "YYYY-MM-DD, with to: a date range instead of a month (at most 366 days)"}, "to": {"type": "string"},
+                 "type": {"type": "string", "description": "filter, comma separated: buy, sell, income, payment"}, "token": {"type": "string", "description": "filter: symbol or address, part of it"},
+                 "chain": {"type": "string"}, "min_usd": {"type": "number", "description": "filter: rows worth at least this many USD"}, "q": {"type": "string", "description": "filter: part of a transaction id"}}
+REPORT_KEYS = ("month", "cur", "lang", "tz", "wid", "from", "to", "type", "token", "chain", "min_usd", "q")
 KEY_HINT = "in the LynxCheck Telegram bot open /journal and tap 'Key for agents' (or make a key on the account page), then set LYNXCHECK_API_KEY"
 def t_journal(path, a, keys=("period", "month", "tz", "wid")):
     """The caller's own trade journal, read-only: the key names the journal. No key: a hint, no call. 401: the key was replaced or is unknown."""
@@ -195,10 +199,10 @@ TOOLS = {
                        lambda a: t_journal("/v1/journal/trades", a)),
     "journal_report": ("Monthly report of your journal in a chosen currency and language (needs LYNXCHECK_API_KEY): buys, sells with the cost at the official rate before each purchase, result, "
                        "received income, totals and a CSV for your accountant. Rates: ECB, NBP for PLN. Information, not tax advice.", REPORT_PARAMS, [],
-                       lambda a: t_journal("/v1/journal/report?kind=trades", a, ("month", "cur", "lang", "tz", "wid"))),
+                       lambda a: t_journal("/v1/journal/report?kind=trades", a, REPORT_KEYS)),
     "payments_report": ("Monthly statement of the payments received on your journal wallets (needs LYNXCHECK_API_KEY): every incoming stablecoin or native-coin transfer with the official rate of the "
                         "last business day before it, in a chosen currency and language, totals and a CSV. For businesses that take crypto payments. Not a tax calculation.", REPORT_PARAMS, [],
-                        lambda a: t_journal("/v1/journal/report?kind=payments", a, ("month", "cur", "lang", "tz", "wid"))),
+                        lambda a: t_journal("/v1/journal/report?kind=payments", a, REPORT_KEYS)),
     "fx_rate": ("Official exchange rate of one US dollar in a currency on a date (ECB; NBP for PLN and UAH). rule before = last business day before the date (default), same = published that day. No key needed.",
                 {"cur": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"}, "rule": {"type": "string", "enum": ["before", "same"]}}, ["cur", "date"],
                 lambda a: lynxcheck(f"/v1/fx?cur={q(a['cur'])}&date={q(a['date'])}" + (f"&rule={q(a['rule'])}" if a.get("rule") else ""))),
