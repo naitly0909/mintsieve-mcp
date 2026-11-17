@@ -26,6 +26,9 @@ Free MCP server (stdio, Python 3, no dependencies) with nineteen read-only tools
 | `journal_summary` | Your own trade journal: realized result in USD at average cost, fees, one row per token with the verdict. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
 | `journal_token` | Token card from your journal: every buy and sell as a part (share, price, distance from the average cost, result), hold time, fees, factual notes. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
 | `journal_trades` | Trades of your journal in the plan window (free: last 30 days and 100 trades; Premium: all). Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `journal_report` | Monthly report of your journal in a chosen currency and language, official rates, CSV for the accountant. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `payments_report` | Monthly statement of the payments your journal wallets received, official rate of each day, CSV. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `fx_rate` | Official USD exchange rate of a day (ECB, NBP), no key | LynxCheck API |
 
 Market tools call the public APIs directly from your machine; nothing goes through LynxCheck.
 

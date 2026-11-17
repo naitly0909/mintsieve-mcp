@@ -29,7 +29,7 @@ class T(unittest.TestCase):
         self.assertIn("error", m.run_tool("nope", {})); self.assertIn("error", m.run_tool("trade_cost", {}))
 class T2(unittest.TestCase):
     def test_new_tools_registered_and_coverage(self):
-        for n in ("wallet_lookup", "solana_portfolio", "data_coverage", "journal_summary", "journal_token", "journal_trades"): self.assertIn(n, m.TOOLS)
+        for n in ("wallet_lookup", "solana_portfolio", "data_coverage", "journal_summary", "journal_token", "journal_trades", "journal_report", "payments_report", "fx_rate"): self.assertIn(n, m.TOOLS)
         old_key, m.KEY = m.KEY, None
         try: r = m.run_tool("journal_summary", {}); self.assertIn("LYNXCHECK_API_KEY", r["error"]); self.assertIn("Key for agents", r["error"])      # no key: a hint, no network call
         finally: m.KEY = old_key

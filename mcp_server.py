@@ -16,6 +16,8 @@ Tools (all read-only; market tools call free public APIs straight from your mach
   wallet_lookup                    ledger statistics of a Solana wallet (needs LYNXCHECK_API_KEY)
   journal_summary, journal_token, journal_trades
                                    your own trade journal: result at average cost, token card, trades (needs LYNXCHECK_API_KEY from the bot: /journal, Key for agents)
+  journal_report, payments_report  monthly report of your trades or of the payments you received, any currency and language, with a CSV (needs LYNXCHECK_API_KEY)
+  fx_rate                          official USD exchange rate of a day (ECB, NBP), no key
   solana_portfolio                 risk scores of the tokens a Solana wallet holds
   data_coverage                    what our data covers (dates, networks, counts, validation)
   exit_check                       what selling a token would really return, from public pool data
@@ -111,6 +113,8 @@ def q(x):
     return urllib.parse.quote(str(x), safe="")
 
 
+REPORT_PARAMS = {"month": {"type": "string", "description": "YYYY-MM, default: the previous month"}, "cur": {"type": "string", "description": "report currency, e.g. EUR, PLN, USD, GBP (31 supported)"},
+                 "lang": {"type": "string", "enum": ["en", "pl", "es", "pt", "tr", "vi", "id", "ru", "zh", "ko", "ja", "uk"]}, "tz": {"type": "string"}, "wid": {"type": "string"}}
 KEY_HINT = "in the LynxCheck Telegram bot open /journal and tap 'Key for agents' (or make a key on the account page), then set LYNXCHECK_API_KEY"
 def t_journal(path, a, keys=("period", "month", "tz", "wid")):
     """The caller's own trade journal, read-only: the key names the journal. No key: a hint, no call. 401: the key was replaced or is unknown."""
@@ -189,6 +193,15 @@ TOOLS = {
     "journal_trades": ("Trades of your journal in the plan window (free: last 30 days and 100 trades; Premium: all): kind, token, amount, value in USD, fee, time. Needs LYNXCHECK_API_KEY. Same filters as journal_summary.",
                        {"period": {"type": "string", "enum": ["all", "today", "yesterday", "7d", "30d"]}, "month": {"type": "string"}, "tz": {"type": "string"}, "wid": {"type": "string"}}, [],
                        lambda a: t_journal("/v1/journal/trades", a)),
+    "journal_report": ("Monthly report of your journal in a chosen currency and language (needs LYNXCHECK_API_KEY): buys, sells with the cost at the official rate before each purchase, result, "
+                       "received income, totals and a CSV for your accountant. Rates: ECB, NBP for PLN. Information, not tax advice.", REPORT_PARAMS, [],
+                       lambda a: t_journal("/v1/journal/report?kind=trades", a, ("month", "cur", "lang", "tz", "wid"))),
+    "payments_report": ("Monthly statement of the payments received on your journal wallets (needs LYNXCHECK_API_KEY): every incoming stablecoin or native-coin transfer with the official rate of the "
+                        "last business day before it, in a chosen currency and language, totals and a CSV. For businesses that take crypto payments. Not a tax calculation.", REPORT_PARAMS, [],
+                        lambda a: t_journal("/v1/journal/report?kind=payments", a, ("month", "cur", "lang", "tz", "wid"))),
+    "fx_rate": ("Official exchange rate of one US dollar in a currency on a date (ECB; NBP for PLN and UAH). rule before = last business day before the date (default), same = published that day. No key needed.",
+                {"cur": {"type": "string"}, "date": {"type": "string", "description": "YYYY-MM-DD"}, "rule": {"type": "string", "enum": ["before", "same"]}}, ["cur", "date"],
+                lambda a: lynxcheck(f"/v1/fx?cur={q(a['cur'])}&date={q(a['date'])}" + (f"&rule={q(a['rule'])}" if a.get("rule") else ""))),
     "exit_check": ("Estimate what selling a token would really return, from public pool data: loss to price impact and fees, price gaps between pools.",
                    {"chain": {"type": "string", "enum": ["solana", "eth", "base", "bsc", "arb", "polygon", "op", "avax"]}, "token": {"type": "string"}, "size_usd": {"type": "number"}}, ["chain", "token"],
                    lambda a: lynxcheck(f"/v1/exit/{q(a['chain'])}/{q(a['token'])}" + (f"?size={q(a['size_usd'])}" if a.get("size_usd") else ""))),
