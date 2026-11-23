@@ -1,6 +1,6 @@
 # lynxcheck-mcp
 
-Free MCP server (stdio, Python 3, no dependencies) with nineteen read-only tools for crypto traders and AI agents. Data and statistics only: no trading signals, not financial advice.
+Free MCP server (stdio, Python 3, no dependencies) with 29 tools for crypto traders and AI agents. All are read-only except `sim_open` and `sim_close`, which change only your virtual trading simulator. Data and statistics only: no trading signals, not financial advice.
 
 | Tool | What it returns | Source |
 |---|---|---|
@@ -29,6 +29,10 @@ Free MCP server (stdio, Python 3, no dependencies) with nineteen read-only tools
 | `journal_report` | Monthly report of your journal in a chosen currency and language, official rates, CSV for the accountant. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
 | `payments_report` | Monthly statement of the payments your journal wallets received, official rate of each day, CSV. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
 | `fx_rate` | Official USD exchange rate of a day (ECB, NBP), no key | LynxCheck API |
+| `sim_account` | Your trading simulator: virtual cash, open positions after sale costs, result, costs split into app fee, DEX fee, price impact, token tax and network fee. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `sim_quote` | What opening and closing a virtual position would cost right now, cost by cost, and the break-even move. Trades nothing. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `sim_open` | Opens a VIRTUAL position at the current public pool price. No real money, no wallet, no order anywhere. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
+| `sim_close` | Closes part or all of a VIRTUAL position; a honeypot cannot be closed, like in reality. Needs `LYNXCHECK_API_KEY` | LynxCheck API |
 
 Market tools call the public APIs directly from your machine; nothing goes through LynxCheck.
 

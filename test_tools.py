@@ -43,6 +43,21 @@ class T2(unittest.TestCase):
         try: r = m.run_tool("data_coverage", {})
         finally: m.lynxcheck = old
         self.assertEqual(r["validation"]["auc_held_out"], 0.88); self.assertIn("note", r)
+class TSim(unittest.TestCase):
+    def test_sim_tools_need_a_key_and_call_the_simulator(self):
+        for n in ("sim_account", "sim_quote", "sim_open", "sim_close"): self.assertIn(n, m.TOOLS)
+        old_key, m.KEY = m.KEY, None
+        try: self.assertIn("LYNXCHECK_API_KEY", m.run_tool("sim_account", {})["error"])
+        finally: m.KEY = old_key
+        get, post, m.KEY, seen = m.lynxcheck, m.lynxcheck_post, "ms_test", []
+        m.lynxcheck = lambda p: seen.append(("GET", p)) or {}; m.lynxcheck_post = lambda p, b: seen.append(("POST", p, b)) or {}
+        try:
+            m.run_tool("sim_account", {}); m.run_tool("sim_quote", {"chain": "solana", "token": "So1/x"}); m.run_tool("sim_open", {"chain": "base", "token": "0xab", "usd": 50}); m.run_tool("sim_close", {"chain": "base", "token": "0xab"})
+        finally: m.lynxcheck, m.lynxcheck_post, m.KEY = get, post, old_key
+        self.assertEqual(seen, [("GET", "/v1/sim"), ("GET", "/v1/sim/quote?chain=solana&token=So1%2Fx&usd=100"), ("POST", "/v1/sim/buy", {"chain": "base", "token": "0xab", "usd": 50}),
+                                ("POST", "/v1/sim/sell", {"chain": "base", "token": "0xab", "pct": 100})])
+
+
 class T3(unittest.TestCase):
     def test_batch_check_posts_and_validates(self):
         self.assertIn("batch_check", m.TOOLS)

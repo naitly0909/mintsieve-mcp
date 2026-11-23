@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""LynxCheck MCP server v0.4 (stdio, standard library only). Free tools for crypto traders and AI agents.
+"""LynxCheck MCP server v0.5 (stdio, standard library only). Free tools for crypto traders and AI agents.
 
-Tools (all read-only; market tools call free public APIs straight from your machine, nothing goes through LynxCheck):
+Tools (read-only except sim_open and sim_close, which change only your virtual simulator; market tools call free public APIs straight from your machine, nothing goes through LynxCheck):
   check_token, creator_lookup      Solana Pump.fun risk (LynxCheck API; keyless free tier)
   solana_fees                      Jito tip percentiles = what landing fast costs right now
   funding_rates                    perpetual funding rates (Binance), extremes and annualized
@@ -24,6 +24,8 @@ Tools (all read-only; market tools call free public APIs straight from your mach
   wallet_health                    public wallet card: dangerous tokens traded, approvals, look-alikes
   wallet_delegation                EIP-7702 delegation of an EVM wallet on all 7 chains
   decode_signature                 plain-words explanation of a wallet signature request
+  sim_account, sim_quote          your trading simulator: virtual cash, positions, costs; what a trade would cost now (needs LYNXCHECK_API_KEY)
+  sim_open, sim_close              open or close a VIRTUAL position at the current pool price; no real money, no wallet, no order anywhere
 Data and statistics only. Not financial advice. No trading signals.
 Env: LYNXCHECK_URL, LYNXCHECK_API_KEY (optional)."""
 import json, os, sys, time, urllib.parse, urllib.request
@@ -38,7 +40,7 @@ def http_json(url, ttl=60, headers=None):
     hit = _cache.get(url)
     if hit and time.time() - hit[0] < ttl:
         return hit[1]
-    req = urllib.request.Request(url, headers={"User-Agent": "lynxcheck-mcp/0.4", **(headers or {})})
+    req = urllib.request.Request(url, headers={"User-Agent": "lynxcheck-mcp/0.5", **(headers or {})})
     with urllib.request.urlopen(req, timeout=45) as r:
         data = json.load(r)
     _cache[url] = (time.time(), data)
@@ -103,7 +105,7 @@ def trade_cost(size_sol, virtual_sol=34.0, tip_sol=0.0005, priority_sol=0.00005)
 
 # ---- tools ----
 def lynxcheck(path):
-    req = urllib.request.Request(URL + path, headers={"User-Agent": "lynxcheck-mcp/0.4", **({"X-API-Key": KEY} if KEY else {})})
+    req = urllib.request.Request(URL + path, headers={"User-Agent": "lynxcheck-mcp/0.5", **({"X-API-Key": KEY} if KEY else {})})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.load(r)
 
@@ -131,6 +133,17 @@ def t_journal(path, a, keys=("period", "month", "tz", "wid")):
         raise
 
 
+SIM_CHAINS = ["solana", "eth", "base", "bsc", "arb", "polygon", "avax", "op"]
+def t_sim(method, path, body=None):
+    """The caller's trading simulator (virtual money only) with the account key. No key: a hint, no call. API errors (limits, unknown token) come back as {error}."""
+    if not KEY: return {"error": "needs LYNXCHECK_API_KEY: " + KEY_HINT}
+    try: return lynxcheck(path) if method == "GET" else lynxcheck_post(path, body or {})
+    except urllib.error.HTTPError as e:
+        if e.code == 401: return {"error": "the key is not known or was replaced: " + KEY_HINT}
+        try: return {"error": json.load(e).get("error") or f"HTTP {e.code}"}
+        except Exception: return {"error": f"HTTP {e.code}"}
+
+
 def t_check_token(a):
     d = lynxcheck(f"/v1/token/{q(a['mint'])}?scan=1"); rm = d.get("risk_model") or {}
     return {"available": rm.get("available"), "score_0_100": rm.get("score_0_100"), "p_lose_gt_50": rm.get("p_lose_gt_50"), "band": rm.get("band_v2"),
@@ -140,7 +153,7 @@ def t_check_token(a):
 
 def lynxcheck_post(path, body):
     req = urllib.request.Request(URL + path, data=json.dumps(body).encode(), method="POST",
-                                 headers={"User-Agent": "lynxcheck-mcp/0.4", "Content-Type": "application/json", **({"X-API-Key": KEY} if KEY else {})})
+                                 headers={"User-Agent": "lynxcheck-mcp/0.5", "Content-Type": "application/json", **({"X-API-Key": KEY} if KEY else {})})
     with urllib.request.urlopen(req, timeout=90) as r:
         return json.load(r)
 
@@ -214,6 +227,17 @@ TOOLS = {
     "wallet_delegation": ("Is an EVM wallet delegated through EIP-7702, and to which code, on all 7 EVM chains.", {"address": {"type": "string"}}, ["address"], lambda a: lynxcheck(f"/v1/delegation/{q(a['address'])}")),
     "decode_signature": ("Explain a wallet signature request or a Solana transaction before signing: Permit, Permit2, Seaport, EIP-7702, approve calls, blind hashes, Solana transfers, delegates, authority changes. Nothing is stored.",
                          {"text": {"type": "string", "description": "the request as the wallet shows it (JSON, hex, or a base64 or base58 Solana transaction)"}}, ["text"], lambda a: lynxcheck_post("/v1/sign/decode", {"text": a["text"]})),
+    "sim_account": ("Your trading simulator (virtual money, needs LYNXCHECK_API_KEY): cash, open positions valued at the current pool price and after sale costs, result, "
+                    "costs split into app fee, DEX fee, price impact, token tax and network fee. The same account as /sim in the Telegram bot and sim.html.", {}, [], lambda a: t_sim("GET", "/v1/sim")),
+    "sim_quote": ("What opening and at once closing a virtual position of usd in a token would cost right now, cost by cost, and how far the price must rise to break even. Trades nothing. Needs LYNXCHECK_API_KEY.",
+                  {"chain": {"type": "string", "enum": SIM_CHAINS}, "token": {"type": "string"}, "usd": {"type": "number"}}, ["chain", "token"],
+                  lambda a: t_sim("GET", f"/v1/sim/quote?chain={q(a['chain'])}&token={q(a['token'])}&usd={q(a.get('usd') or 100)}")),
+    "sim_open": ("Open or add to a VIRTUAL position in your simulator at the current public pool price (no real money, no wallet, no order anywhere). Costs are deducted like in a real trade. Needs LYNXCHECK_API_KEY.",
+                 {"chain": {"type": "string", "enum": SIM_CHAINS}, "token": {"type": "string"}, "usd": {"type": "number"}}, ["chain", "token", "usd"],
+                 lambda a: t_sim("POST", "/v1/sim/buy", {"chain": a["chain"], "token": a["token"], "usd": a["usd"]})),
+    "sim_close": ("Close pct percent (default 100) of a VIRTUAL position in your simulator at the current pool price. A token the sell simulation calls a honeypot cannot be closed, like in reality. Needs LYNXCHECK_API_KEY.",
+                  {"chain": {"type": "string", "enum": SIM_CHAINS}, "token": {"type": "string"}, "pct": {"type": "number"}}, ["chain", "token"],
+                  lambda a: t_sim("POST", "/v1/sim/sell", {"chain": a["chain"], "token": a["token"], "pct": a.get("pct") or 100})),
     "trade_cost": ("Round-trip cost of a Pump.fun trade for your size: fees, price impact, tips, and the break-even price move.",
                    {"size_sol": {"type": "number"}, "virtual_sol": {"type": "number"}, "tip_sol": {"type": "number"}, "priority_sol": {"type": "number"}}, ["size_sol"],
                    lambda a: trade_cost(float(a["size_sol"]), float(a.get("virtual_sol", 34)), float(a.get("tip_sol", 0.0005)), float(a.get("priority_sol", 0.00005)))),
@@ -244,7 +268,7 @@ def main():
         if not isinstance(r, dict): continue
         i, m = r.get("id"), r.get("method")
         if m == "initialize":
-            reply(i, {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "lynxcheck", "version": "0.4"}})
+            reply(i, {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "lynxcheck", "version": "0.5"}})
         elif m == "tools/list":
             reply(i, {"tools": [{"name": n, "description": d, "inputSchema": {"type": "object", "properties": p, "required": req}} for n, (d, p, req, _) in TOOLS.items()]})
         elif m == "tools/call":
